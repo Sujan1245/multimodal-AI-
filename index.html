@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sujan's Multi-Modal AI Chatbot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* (CSS from the previous stylish response goes here) */
+        /* Only adding the necessary new styles for the record button */
+        :root {
+            /* Define a modern color palette */
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --text-color: #343a40;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #dee2e6;
+            --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --danger-color: #dc3545;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1rem;
+            line-height: 1.6;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 2rem;
+            text-align: center;
+            font-weight: 700;
+            font-size: 2.5rem;
+        }
+
+        form {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-light);
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            border: 1px solid var(--border-color);
+        }
+        
+        label {
+            display: block;
+            font-weight: 500;
+            color: var(--text-color);
+            margin-bottom: 0.25rem;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            resize: vertical;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+            outline: none;
+        }
+
+        input[type="file"] {
+            font-size: 1rem;
+            padding: 0.5rem 0;
+        }
+
+        button {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: none;
+            background-color: var(--primary-color);
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        button:active {
+             transform: scale(0.99);
+        }
+
+        /* NEW STYLES for Voice */
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #recordButton {
+            background-color: var(--danger-color);
+            width: 100px;
+            font-weight: bold;
+        }
+        #recordButton.recording {
+            animation: pulse 1s infinite alternate;
+        }
+        @keyframes pulse {
+            from { background-color: var(--danger-color); }
+            to { background-color: #ff6347; }
+        }
+        #stopButton {
+            display: none;
+        }
+        #statusMessage {
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        /* Output Section */
+        .output {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .caption, .response {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05);
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .caption h2, .response h2 {
+            color: var(--primary-color);
+            margin-bottom: 0.75rem;
+            font-size: 1.25rem;
+            font-weight: 500;
+        }
+
+        .response p {
+            white-space: pre-wrap;
+            font-size: 1rem;
+        }
+
+        .preview-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .preview-audio {
+            width: 100%;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Sujan's Multi-Modal AI Chatbot</h1>
+
+    <form method="POST" action="{{ url_for('index') }}" enctype="multipart/form-data" id="chat-form">
+        
+        <label for="text-input">Your Question/Prompt (Text):</label>
+        <textarea id="text-input" name="text" placeholder="Type your question or leave blank for pure audio/image input..." rows="2">{{ user_text }}</textarea>
+
+        <label for="media-file">Upload File (Image/Audio/Video):</label>
+        <input type="file" id="media-file-input" name="media_file" accept="image/*,audio/*,video/*">
+
+        <label>OR Record Voice Input:</label>
+        <div class="voice-controls">
+            <button type="button" id="recordButton">🔴 Record</button>
+            <button type="button" id="stopButton" disabled>⏹️ Stop</button>
+            <span id="statusMessage">Ready to record.</span>
+        </div>
+        
+        <input type="hidden" name="media_file" id="audio-blob-input">
+        
+        <button type="submit">Submit Request</button>
+    </form>
+
+    <div class="output">
+        {% if uploaded_file_url %}
+        <div class="caption">
+            <h2>Media Preview:</h2>
+            {% if file_type == 'image' %}
+                <img src="{{ uploaded_file_url }}" alt="Uploaded Image" class="preview-image">
+            {% elif file_type == 'audio' %}
+                <audio controls class="preview-audio">
+                    <source src="{{ uploaded_file_url }}">
+                    Your browser does not support the audio element.
+                </audio>
+            {% elif file_type == 'video' %}
+                <video controls class="preview-video">
+                    <source src="{{ uploaded_file_url }}">
+                    Your browser does not support the video element.
+                </video>
+            {% else %}
+                <p>File uploaded: {{ uploaded_file_url.split('/')[-1] }}</p>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if response %}
+        <div class="response">
+            <h2>🤖 LLM Response:</h2>
+            <p>{{ response }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const audioBlobInput = document.getElementById('audio-blob-input');
+        const mediaFileInput = document.getElementById('media-file-input');
+        const chatForm = document.getElementById('chat-form');
+
+        let mediaRecorder;
+        let audioChunks = [];
+
+        // 1. Start Recording
+        recordButton.onclick = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    // Create a Blob (the file object) from the chunks
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    
+                    // Convert the blob to a File object for submission
+                    const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+
+                    // Create a new DataTransfer to hold the file
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(audioFile);
+
+                    // Set the file object to the mediaFileInput (the file input)
+                    // We must clear the existing file input first if it was used
+                    mediaFileInput.files = dataTransfer.files;
+
+                    statusMessage.textContent = 'Recording finished. Ready to submit.';
+                    stopButton.disabled = true;
+                };
+
+                mediaRecorder.start();
+                recordButton.classList.add('recording');
+                stopButton.disabled = false;
+                mediaFileInput.disabled = true; // Disable file upload while recording
+                statusMessage.textContent = 'Recording... Say something!';
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                statusMessage.textContent = 'Error: Could not access microphone.';
+            }
+        };
+
+        // 2. Stop Recording
+        stopButton.onclick = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop()); // Stop mic access
+                recordButton.classList.remove('recording');
+                stopButton.disabled = true;
+                mediaFileInput.disabled = false; // Re-enable file upload
+            }
+        };
+
+        // 3. Ensure only one media input is used per submission
+        chatForm.onsubmit = (event) => {
+            // If the user uses the file upload, clear any recorded audio
+            if (mediaFileInput.files.length > 0) {
+                // If a file is uploaded, proceed normally
+                return true;
+            } else if (!mediaFileInput.files.length) {
+                // If neither is present, alert user
+                const textInput = document.getElementById('text-input').value.trim();
+                if (textInput === "") {
+                    alert('Please enter text and/or upload a file or record voice.');
+                    event.preventDefault();
+                    return false;
+                }
+            }
+            // If we only have text, the backend will treat it as text-only (but the
+            // backend expects a file in this code, so the above check is best)
+        };
+        
+        // This resets the file input if the user tries to manually select a file after recording
+        mediaFileInput.onchange = () => {
+             statusMessage.textContent = 'File uploaded. Ready to submit.';
+        };
+    </script>
+
+</body>
+</html>
